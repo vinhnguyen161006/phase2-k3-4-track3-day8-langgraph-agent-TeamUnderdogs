@@ -8,7 +8,7 @@ Team of 5:
 |---:|---|---|
 | 1 | Nguyen Quang Vinh | 2A202601517 |
 | 2 | Nguyễn Quang Huy | 2A202601165 |
-| 3 | | |
+| 3 | Phạm Sỹ Đức | 2A202601601 |
 | 4 | | |
 | 5 | | |
 
