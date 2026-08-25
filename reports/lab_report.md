@@ -7,7 +7,7 @@ Team of 5:
 | # | Name | Student ID |
 |---:|---|---|
 | 1 | Nguyen Quang Vinh | 2A202601517 |
-| 2 | | |
+| 2 | Nguyễn Quang Huy | 2A202601165 |
 | 3 | | |
 | 4 | | |
 | 5 | | |
