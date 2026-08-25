@@ -9,7 +9,7 @@ Team of 5:
 | 1 | Nguyen Quang Vinh | 2A202601517 |
 | 2 | Nguyễn Quang Huy | 2A202601165 |
 | 3 | Phạm Sỹ Đức | 2A202601601 |
-| 4 | | |
+| 4 | Đặng Trung Kiên| 2A202601887|
 | 5 | | |
 
 - Repo/commit: phase2-k3-4-track3-day8-langgraph-agent @ 72486e3
