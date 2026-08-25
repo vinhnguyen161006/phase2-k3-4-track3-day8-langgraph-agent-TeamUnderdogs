@@ -41,7 +41,33 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "N", "ANN"]
-ignore = ["ANN101", "ANN102"]
+# ANN401: LangGraph's compiled graph and checkpointer objects have no public
+# static type to name, so `Any` is the honest annotation at those boundaries.
+ignore = ["ANN101", "ANN102", "ANN401"]
+
+[tool.ruff.lint.per-file-ignores]
+# Test functions are discovered by name and never called by typed code, so
+# requiring return/parameter annotations on them adds noise without safety.
+# E402: collection-time skip guards (pytestmark) must precede the imports they
+# guard, otherwise the module fails to import on a machine without the extras.
+"tests/*" = ["ANN001", "ANN002", "ANN003", "ANN201", "ANN202", "E402"]
+
+[tool.mypy]
+python_version = "3.11"
+
+# Optional provider/persistence extras are imported lazily inside functions and
+# may legitimately be absent (see pyproject optional-dependencies). Their
+# absence is a runtime concern handled by try/except, not a type error.
+[[tool.mypy.overrides]]
+module = [
+  "langchain_openai.*",
+  "langchain_anthropic.*",
+  "langchain_google_genai.*",
+  "langgraph.checkpoint.postgres.*",
+  "psycopg.*",
+  "yaml.*",
+]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 minversion = "8.0"

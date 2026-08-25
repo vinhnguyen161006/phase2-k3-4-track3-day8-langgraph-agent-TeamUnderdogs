@@ -7,7 +7,10 @@ def test_metric_from_state_success():
         "scenario_id": "S",
         "route": "simple",
         "final_answer": "ok",
-        "events": [make_event("intake", "completed", "ok"), make_event("answer", "completed", "ok")],
+        "events": [
+            make_event("intake", "completed", "ok"),
+            make_event("answer", "completed", "ok"),
+        ],
         "errors": [],
         "approval": None,
     }
@@ -31,12 +34,18 @@ def test_metric_from_state_route_mismatch():
 
 def test_summarize_metrics():
     m1 = metric_from_state(
-        {"scenario_id": "1", "route": "simple", "final_answer": "ok", "events": [], "errors": [], "approval": None},
+        {
+            "scenario_id": "1", "route": "simple", "final_answer": "ok",
+            "events": [], "errors": [], "approval": None,
+        },
         "simple",
         False,
     )
     m2 = metric_from_state(
-        {"scenario_id": "2", "route": "tool", "final_answer": None, "events": [], "errors": [], "approval": None},
+        {
+            "scenario_id": "2", "route": "tool", "final_answer": None,
+            "events": [], "errors": [], "approval": None,
+        },
         "tool",
         False,
     )

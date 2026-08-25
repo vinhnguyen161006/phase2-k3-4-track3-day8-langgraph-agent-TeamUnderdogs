@@ -12,9 +12,61 @@ Usage in nodes:
 from __future__ import annotations
 
 import os
+import random
+import time
+from collections.abc import Callable
+from functools import lru_cache
+from typing import Any, TypeVar
+
+T = TypeVar("T")
+
+#: Free-tier Gemini/OpenAI keys have tight per-minute limits, and this graph
+#: issues up to three calls per scenario. Retrying a 429 with exponential
+#: backoff keeps a whole scenario run from silently degrading to fallbacks.
+_MAX_LLM_RETRIES = 4
+_BASE_BACKOFF_SECONDS = 2.0
 
 
-def get_llm(model: str | None = None, temperature: float = 0.0):
+def _is_rate_limit(exc: Exception) -> bool:
+    """True when an exception looks like a provider rate-limit/quota rejection."""
+    text = f"{type(exc).__name__} {exc}".lower()
+    return any(
+        marker in text
+        for marker in ("429", "resource_exhausted", "rate limit", "ratelimit", "quota")
+    )
+
+
+def call_with_retry(operation: Callable[[], T]) -> T:
+    """Run an LLM call, retrying transient rate-limit errors with backoff.
+
+    Only rate-limit style failures are retried; everything else propagates
+    immediately so genuine bugs (bad key, bad schema) surface at once. The
+    caller's own try/except still provides the final fallback.
+    """
+    for attempt in range(_MAX_LLM_RETRIES):
+        try:
+            return operation()
+        except Exception as exc:
+            if not _is_rate_limit(exc) or attempt == _MAX_LLM_RETRIES - 1:
+                raise
+            delay = _BASE_BACKOFF_SECONDS * (2**attempt) + random.uniform(0, 1)
+            time.sleep(delay)
+    # Unreachable: the final iteration either returns or re-raises above.
+    raise RuntimeError("call_with_retry exhausted without a result")
+
+
+@lru_cache(maxsize=8)
+def _cached_llm(model: str | None, temperature: float) -> Any:
+    """Cache clients so each node call reuses one connection pool."""
+    return _build_llm(model, temperature)
+
+
+def get_llm(model: str | None = None, temperature: float = 0.0) -> Any:
+    """Return a (cached) LLM client from environment configuration."""
+    return _cached_llm(model, temperature)
+
+
+def _build_llm(model: str | None = None, temperature: float = 0.0) -> Any:
     """Create an LLM client from environment configuration.
 
     Checks for API keys in this order:

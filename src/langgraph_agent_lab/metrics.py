@@ -34,7 +34,9 @@ class MetricsReport(BaseModel):
     scenario_metrics: list[ScenarioMetric]
 
 
-def metric_from_state(state: dict[str, Any], expected_route: str, approval_required: bool) -> ScenarioMetric:
+def metric_from_state(
+    state: dict[str, Any], expected_route: str, approval_required: bool
+) -> ScenarioMetric:
     events = state.get("events", []) or []
     errors = state.get("errors", []) or []
     actual_route = state.get("route")
@@ -42,9 +44,12 @@ def metric_from_state(state: dict[str, Any], expected_route: str, approval_requi
     nodes = [event.get("node", "unknown") for event in events]
     retry_count = sum(1 for node in nodes if node == "retry")
     interrupt_count = sum(1 for node in nodes if node == "approval")
-    success = actual_route == expected_route and bool(state.get("final_answer") or state.get("pending_question"))
+    answered = bool(state.get("final_answer") or state.get("pending_question"))
+    success = actual_route == expected_route and answered
     if approval_required:
         success = success and approval is not None
+    # Sum the per-node latencies recorded by LLM-backed nodes in their events.
+    latency_ms = sum(int(event.get("latency_ms", 0) or 0) for event in events)
     return ScenarioMetric(
         scenario_id=str(state.get("scenario_id", "unknown")),
         success=success,
@@ -55,11 +60,19 @@ def metric_from_state(state: dict[str, Any], expected_route: str, approval_requi
         interrupt_count=interrupt_count,
         approval_required=approval_required,
         approval_observed=approval is not None,
+        latency_ms=latency_ms,
         errors=list(errors),
     )
 
 
-def summarize_metrics(items: list[ScenarioMetric]) -> MetricsReport:
+def summarize_metrics(items: list[ScenarioMetric], resume_success: bool = False) -> MetricsReport:
+    """Aggregate per-scenario metrics.
+
+    Args:
+        items: one metric per executed scenario.
+        resume_success: set True only when a checkpoint replay/resume was
+            actually verified during the run (see cli.verify_resume).
+    """
     if not items:
         raise ValueError("No scenario metrics to summarize")
     return MetricsReport(
@@ -68,7 +81,7 @@ def summarize_metrics(items: list[ScenarioMetric]) -> MetricsReport:
         avg_nodes_visited=mean(item.nodes_visited for item in items),
         total_retries=sum(item.retry_count for item in items),
         total_interrupts=sum(item.interrupt_count for item in items),
-        resume_success=False,
+        resume_success=resume_success,
         scenario_metrics=items,
     )
 

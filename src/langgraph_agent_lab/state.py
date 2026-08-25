@@ -1,14 +1,28 @@
 """State schema for the Day 08 LangGraph lab.
 
-Students should extend the schema only when needed. Keep state lean and serializable.
+Design rule: keep state lean and JSON-serializable so every field survives a
+checkpoint round-trip (SQLite/Postgres store plain JSON, not Python objects).
+
+Reducer policy
+--------------
+Two kinds of fields live here:
+
+* **Append-only** (``Annotated[list[...], add]``) — anything that forms an audit
+  trail. ``messages``, ``tool_results``, ``errors`` and ``events`` must never
+  lose history, because the retry loop visits the same nodes several times and
+  metrics are derived by counting those entries.
+* **Overwrite** (plain annotation) — anything that describes the *current*
+  situation only: ``route``, ``attempt``, ``evaluation_result``, ``approval``…
+  Keeping these as last-write-wins is what lets the retry loop re-enter
+  ``tool``/``evaluate`` without accumulating stale verdicts.
 """
 
 from __future__ import annotations
 
 from enum import StrEnum
+from operator import add
 from typing import Annotated, Any, TypedDict
 
-from operator import add
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -20,6 +34,16 @@ class Route(StrEnum):
     ERROR = "error"
     DEAD_LETTER = "dead_letter"
     DONE = "done"
+
+
+#: Routes an LLM is allowed to emit from ``classify_node``.
+CLASSIFIABLE_ROUTES: tuple[str, ...] = (
+    Route.RISKY.value,
+    Route.TOOL.value,
+    Route.MISSING_INFO.value,
+    Route.ERROR.value,
+    Route.SIMPLE.value,
+)
 
 
 class LabEvent(BaseModel):
@@ -41,21 +65,40 @@ class ApprovalDecision(BaseModel):
 class AgentState(TypedDict, total=False):
     """LangGraph state.
 
-    TODO(student): decide which fields should be append-only and which should be overwritten.
-    The current annotations give a safe starting point for auditability.
+    Fields without an ``Annotated[..., add]`` reducer are overwrite-on-write;
+    the four list fields at the bottom are append-only audit trails.
     """
 
+    # ── identity / input (overwrite) ────────────────────────────────
     thread_id: str
     scenario_id: str
     query: str
+
+    # ── classification result (overwrite) ───────────────────────────
     route: str
     risk_level: str
+    classify_reason: str
+
+    # ── retry-loop bookkeeping (overwrite) ──────────────────────────
     attempt: int
     max_attempts: int
+    #: "success" | "needs_retry" — gate read by ``route_after_evaluate``.
+    evaluation_result: str
+
+    # ── clarification flow (overwrite) ──────────────────────────────
+    #: Question asked back to the user when the query is not actionable.
+    pending_question: str | None
+
+    # ── risky-action / HITL flow (overwrite) ────────────────────────
+    #: Human-readable description of the side-effecting action awaiting sign-off.
+    proposed_action: str | None
+    #: Serialized ``ApprovalDecision`` — dict, not the model, so it checkpoints.
+    approval: dict[str, Any] | None
+
+    # ── output (overwrite) ──────────────────────────────────────────
     final_answer: str | None
-    # TODO(student): you will need additional fields for clarification, risky actions,
-    # approval decisions, and retry-loop gating. Add them as you implement nodes.
-    # Hint: check what your nodes return and what your routing functions read.
+
+    # ── audit trails (append-only) ──────────────────────────────────
     messages: Annotated[list[str], add]
     tool_results: Annotated[list[str], add]
     errors: Annotated[list[str], add]
@@ -87,8 +130,13 @@ def initial_state(scenario: Scenario) -> AgentState:
         "query": scenario.query,
         "route": "",
         "risk_level": "unknown",
+        "classify_reason": "",
         "attempt": 0,
         "max_attempts": scenario.max_attempts,
+        "evaluation_result": "",
+        "pending_question": None,
+        "proposed_action": None,
+        "approval": None,
         "final_answer": None,
         "messages": [],
         "tool_results": [],
@@ -98,5 +146,16 @@ def initial_state(scenario: Scenario) -> AgentState:
 
 
 def make_event(node: str, event_type: str, message: str, **metadata: Any) -> dict[str, Any]:
-    """Create a normalized event payload."""
-    return LabEvent(node=node, event_type=event_type, message=message, metadata=metadata).model_dump()
+    """Create a normalized event payload.
+
+    ``latency_ms`` is promoted out of the metadata bag into the typed field so
+    metrics can sum it without reaching into free-form metadata.
+    """
+    latency_ms = int(metadata.pop("latency_ms", 0) or 0)
+    return LabEvent(
+        node=node,
+        event_type=event_type,
+        message=message,
+        latency_ms=latency_ms,
+        metadata=metadata,
+    ).model_dump()

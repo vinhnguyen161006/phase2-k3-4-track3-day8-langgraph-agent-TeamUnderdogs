@@ -215,19 +215,31 @@ Pick one or more:
 
 ## Submission checklist
 
-- [ ] All `TODO(student)` sections implemented
-- [ ] `.env` configured with LLM API key
-- [ ] `classify_node` uses real LLM call with structured output
-- [ ] `answer_node` uses real LLM call for grounded responses
-- [ ] `make test` passes
-- [ ] `make run-scenarios` generates valid `outputs/metrics.json`
-- [ ] `make grade-local` passes validation
-- [ ] `reports/lab_report.md` completed with architecture, metrics, and analysis
-- [ ] Can explain at least one route and one failure mode during demo
+- [x] All `TODO(student)` sections implemented
+- [x] `.env` configured with LLM API key (`GEMINI_API_KEY`, `LLM_MODEL=gemini-3.5-flash`)
+- [x] `classify_node` uses real LLM call with structured output
+- [x] `answer_node` uses real LLM call for grounded responses
+- [x] `make test` passes (`make lint` and `make typecheck` clean too)
+- [x] `make run-scenarios` generates valid `outputs/metrics.json` (7/7, 100%)
+- [x] `make grade-local` passes validation
+- [x] `reports/lab_report.md` generated from live metrics
+- [x] Can explain at least one route and one failure mode during demo
 
 **For 90+ points, also include:**
-- [ ] At least one bonus extension (persistence, parallel fan-out, HITL, time travel, diagram)
-- [ ] Evidence of extension in report (screenshot, log output, or diagram)
+- [x] Bonus extensions: SQLite checkpointer, time-travel replay + cross-process
+      resume, LLM-as-judge `evaluate_node`, real `interrupt()` HITL mode,
+      Mermaid diagram, rate-limit backoff
+- [x] Evidence in report §6/§7, `docs/graph.mmd`, `scripts/demo_persistence.py`
+
+### Notes for the grader
+
+- **Model**: `gemini-2.5-flash` (the `.env.example` default) is no longer served
+  to new API keys and returns 404, so `.env` pins `LLM_MODEL=gemini-3.5-flash`.
+  Any chat model with structured-output support works.
+- **Live-LLM tests**: `tests/test_graph_smoke.py` makes real API calls and takes
+  several minutes. `tests/test_nodes.py` and `tests/test_graph_behavior.py`
+  cover the same logic offline in seconds.
+- **Persistence demo**: `python scripts/demo_persistence.py`.
 
 ---
 
