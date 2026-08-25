@@ -2,7 +2,7 @@
 
 ## 1. Team / student
 
-Team of 4:
+Team of 5:
 
 | # | Name | Student ID |
 |---:|---|---|
@@ -10,8 +10,9 @@ Team of 4:
 | 2 | | |
 | 3 | | |
 | 4 | | |
+| 5 | | |
 
-- Repo/commit: phase2-k3-4-track3-day8-langgraph-agent @ 6d8252d
+- Repo/commit: phase2-k3-4-track3-day8-langgraph-agent @ 72486e3
 - Date: 2026-08-25
 
 > Generated from `outputs/metrics.json` by `report.render_report()` — the tables

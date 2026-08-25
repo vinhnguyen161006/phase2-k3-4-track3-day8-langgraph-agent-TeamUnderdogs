@@ -148,7 +148,7 @@ def render_report(metrics: MetricsReport) -> str:
 
 ## 1. Team / student
 
-Team of 4:
+Team of 5:
 
 | # | Name | Student ID |
 |---:|---|---|
@@ -156,6 +156,7 @@ Team of 4:
 | 2 | | |
 | 3 | | |
 | 4 | | |
+| 5 | | |
 
 - Repo/commit: phase2-k3-4-track3-day8-langgraph-agent @ {_git_commit()}
 - Date: {date.today().isoformat()}
